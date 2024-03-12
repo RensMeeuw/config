@@ -1,49 +1,3 @@
-local function startsWith(str, start)
-    return string.sub(str, 1, string.len(start)) == start
-end
-
-local function hasValue(table, value)
-    for k, v in pairs(table) do
-        if v == value then
-            return true
-        end
-    end
-    return false
-end
-
-local function getBranchesLocal()
-    local handle = io.popen("git branch -a 2>&1")
-    local result = handle:read("*a")
-    handle:close()
-
-    local branches = {}
-    if startsWith(result, "fatal") == false then
-        for branch in string.gmatch(result, "[* ]%s.%S+") do
-            branch = string.gsub(branch, "^%*%s*", "")
-            branch = string.gsub(branch, "^%s*remotes/", "")
-            branch = string.gsub(branch, "^%s+", "")
-            table.insert(branches, branch)
-        end
-    end
-    return branches
-end
-
-local function getBranchesRemote()
-    local handle = io.popen("git remote -v 2>&1")
-    local result = handle:read("*a")
-    handle:close()
-
-    local branches = {}
-    if startsWith(result, "fatal") == false then
-        for branch in string.gmatch(result, "%S+") do
-            if string.sub(branch, 0, 1) ~= "(" and startsWith(branch, "http") == false then
-                table.insert(branches, branch)
-            end
-        end
-    end
-    return branches
-end
-
 local status = {
     arg = "status",
     flags = { "-s", "-b", "--show-stash", "-v" },
@@ -501,15 +455,54 @@ local rm = {
     }
 }
 
-local commandAliases = { "add", "bisect", "branch", "checkout", "clone", "commit", "fetch", "grep", "init",
-    "log", "merge", "mv", "pull", "push", "rebase", "reset", "restore", "rm", "show", "show-branch",
-    "switch", "stash", "tag" }
-
 local branchLocalAliases = { "checkout", "push", "switch" }
 local branchRemoteAliases = { "branch", "diff", "fetch", "merge", "pull", "rebase", "reset", "show", "show-branch" }
-local resetAliases = { "add", "mv", "restore", "rm" }
 
-local flags = { "-n", "-v", "-f" }
+local function startsWith(str, start)
+    return string.sub(str, 1, string.len(start)) == start
+end
+
+local function hasValue(table, value)
+    for k, v in pairs(table) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+local function getBranchesLocal()
+    local handle = io.popen("git branch -a 2>&1")
+    local result = handle:read("*a")
+    handle:close()
+
+    local branches = {}
+    if startsWith(result, "fatal") == false then
+        for branch in string.gmatch(result, "[* ]%s.%S+") do
+            branch = string.gsub(branch, "^%*%s*", "")
+            branch = string.gsub(branch, "^%s*remotes/", "")
+            branch = string.gsub(branch, "^%s+", "")
+            table.insert(branches, branch)
+        end
+    end
+    return branches
+end
+
+local function getBranchesRemote()
+    local handle = io.popen("git remote -v 2>&1")
+    local result = handle:read("*a")
+    handle:close()
+
+    local branches = {}
+    if startsWith(result, "fatal") == false then
+        for branch in string.gmatch(result, "%S+") do
+            if string.sub(branch, 0, 1) ~= "(" and startsWith(branch, "http") == false then
+                table.insert(branches, branch)
+            end
+        end
+    end
+    return branches
+end
 
 local gitAutocomplete = clink.generator(10)
 
@@ -543,9 +536,9 @@ local function rebuildArgs()
     clink.argmatcher("git"):reset()
     for k, v in pairs(getCommands()) do
         local flagParser = clink.argmatcher():addflags(v.flags):adddescriptions(v.flagDescriptions)
-        local parser = clink.argmatcher():addarg(v.arg .. flagParser):adddescriptions(v.description)
+        local parser = clink.argmatcher():addarg(v.arg .. flagParser)
         parser:nofiles()
-        clink.argmatcher("git"):addarg(parser):nofiles()
+        clink.argmatcher("git"):addarg(parser):nofiles():adddescriptions(v.description)
     end
 end
 

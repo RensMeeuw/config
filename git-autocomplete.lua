@@ -66,7 +66,7 @@ local branch = {
     arg = "branch",
     flags = { "-d", "-D", "-m", "-M", "-a", "-u", "-v", "--merged", "--no-merged" },
     description = {
-        ["branch"] = "List, create, or delete branches."
+        ["branch"] = {"List, create, or delete branches."}
     },
     flagDescriptions = {
         ["-d"] = "Delete a branch.",
@@ -455,6 +455,23 @@ local rm = {
     }
 }
 
+local switch = {
+    arg = "switch",
+    flags = { "-c", "-d", "-f", "--create", "--detach", "--force", "--orphan" },
+    description = {
+        ["switch"] = "Switch branches."
+    },
+    flagDescriptions = {
+        ["-c"] = "Create a new branch and start it at <start-point>.",
+        ["-d"] = "Detach the HEAD at the named commit.",
+        ["-f"] = "Force the switch.",
+        ["--create"] = "Create a new branch and start it at <start-point>.",
+        ["--detach"] = "Detach the HEAD at the named commit.",
+        ["--force"] = "Force the switch.",
+        ["--orphan"] = "Create a new orphan branch."
+    }
+}
+
 local branchLocalAliases = { "checkout", "push", "switch" }
 local branchRemoteAliases = { "branch", "diff", "fetch", "merge", "pull", "rebase", "reset", "show", "show-branch" }
 
@@ -504,8 +521,6 @@ local function getBranchesRemote()
     return branches
 end
 
-local gitAutocomplete = clink.generator(10)
-
 local function getCommands()
     local commands = {}
     table.insert(commands, status)
@@ -529,47 +544,56 @@ local function getCommands()
     table.insert(commands, reset)
     table.insert(commands, restore)
     table.insert(commands, rm)
+    table.insert(commands, switch)
     return commands
 end
 
-local function rebuildArgs()
-    clink.argmatcher("git"):reset()
-    for k, v in pairs(getCommands()) do
-        local flagParser = clink.argmatcher():addflags(v.flags):adddescriptions(v.flagDescriptions)
-        local parser = clink.argmatcher():addarg(v.arg .. flagParser)
-        parser:nofiles()
-        clink.argmatcher("git"):addarg(parser):nofiles():adddescriptions(v.description)
-    end
-end
+local prev_dir = ""
 
-function gitAutocomplete:generate(lineState, match_builder)
-    if lineState:getword(1) ~= "git" then
-        return false
-    end
-    local alias = lineState:getword(2)
-    local matchCount = 0
-    if lineState:getwordcount() > 4 then
-        return false
-    end
-    if alias then
-        if hasValue(branchLocalAliases, alias) then
-            for k, v in ipairs(getBranchesLocal()) do
-                match_builder:addmatch(v)
-                matchCount = matchCount + 1
-            end
-        elseif hasValue(branchRemoteAliases, alias) then
-            for k, v in ipairs(getBranchesRemote()) do
-                match_builder:addmatch(v)
-                matchCount = matchCount + 1
-            end
-            for k, v in ipairs(getBranchesLocal()) do
-                match_builder:addmatch(v)
-                matchCount = matchCount + 1
-            end
+-- Initialize the argmatcher.
+-- v1.3.12 and higher receive a command_word parameter as well, which is the
+-- word in the command line that matched this argmatcher.
+local function init(argmatcher, command_word)
+    argmatcher:reset()
+    local localBranchParser = clink.argmatcher():addarg(getBranchesLocal())
+    local remoteBranchParser = clink.argmatcher():addarg(getBranchesRemote())
+    local args = {}
+    local descriptions = {}
+    for k, v in pairs(getCommands()) do
+        -- TODO: make the flags work for all commands
+        local flagParser = clink.argmatcher():addflags(v.flags):adddescriptions(v.flagDescriptions):nofiles()
+
+        local commandParser = clink.argmatcher():addarg(v.arg .. flagParser):nofiles()
+        for k,v in pairs(v.description) do
+            descriptions[k] = v
+        end
+
+        if hasValue(branchLocalAliases, v.arg) then
+            table.insert(args, v.arg .. localBranchParser)
+        elseif hasValue(branchRemoteAliases, v.arg) then
+            table.insert(args, v.arg .. remoteBranchParser)
+        else
+            table.insert(args, commandParser)
         end
     end
 
-    return matchCount > 0
+    clink.argmatcher("git"):addarg(args):adddescriptions(descriptions):nofiles()
+end
+
+local function onDelayInit(argmatcher, command_word)
+    local dir = os.getcwd()
+    if prev_dir ~= dir then
+        prev_dir = dir
+        argmatcher:reset()
+        init(argmatcher, command_word)
+    end
+end
+
+local function rebuildArgs()
+    local m = clink.argmatcher("git")
+    if m.setdelayinit then
+        m:setdelayinit(onDelayInit)
+    end
 end
 
 rebuildArgs()

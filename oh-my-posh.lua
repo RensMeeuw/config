@@ -1,1 +1,1 @@
-load(io.popen('oh-my-posh init cmd --config C:/Users/rmeeuwsen/rmeeuwsen.mytheme.omp.json'):read("*a"))()
+load(io.popen('oh-my-posh init cmd --config C:/dev/config/config.mytheme.omp.json'):read("*a"))()

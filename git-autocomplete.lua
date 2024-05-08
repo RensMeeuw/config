@@ -563,7 +563,7 @@ local function init(argmatcher, command_word)
         -- TODO: make the flags work for all commands
         local flagParser = clink.argmatcher():addflags(v.flags):adddescriptions(v.flagDescriptions):nofiles()
 
-        local commandParser = clink.argmatcher():addarg(v.arg .. flagParser):nofiles()
+        local commandParser = clink.argmatcher():addarg(v.arg .. flagParser)
         for k,v in pairs(v.description) do
             descriptions[k] = v
         end
@@ -577,7 +577,7 @@ local function init(argmatcher, command_word)
         end
     end
 
-    clink.argmatcher("git"):addarg(args):adddescriptions(descriptions):nofiles()
+    clink.argmatcher("git"):addarg(args):adddescriptions(descriptions)
 end
 
 local function onDelayInit(argmatcher, command_word)
